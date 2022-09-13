@@ -10,7 +10,7 @@ type Router struct {
 
 func (r *Router) ResolveWorker(method string) (jsonrpc_server.Worker, *jsonrpc_server.Error) {
 	routes := map[string]jsonrpc_server.Worker{
-		"dummy": &workers.DummyWorker{},
+		"version": &workers.VersionWorker{},
 	}
 
 	w, found := routes[method]

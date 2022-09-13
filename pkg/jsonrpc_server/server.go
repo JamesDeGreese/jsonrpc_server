@@ -1,6 +1,7 @@
 package jsonrpc_server
 
 import (
+	"context"
 	"encoding/json"
 	"github.com/go-playground/validator/v10"
 	"io/ioutil"
@@ -11,6 +12,7 @@ import (
 type Server struct {
 	Address string
 	Router  Router
+	Ctx     context.Context
 }
 
 type Request struct {
@@ -37,7 +39,7 @@ type Router interface {
 }
 
 type Worker interface {
-	Handle() (interface{}, *Error)
+	Handle(context.Context) (interface{}, *Error)
 }
 
 func (s *Server) Run() {
@@ -103,7 +105,7 @@ func (s *Server) ProcessRequest(w http.ResponseWriter, r *http.Request) {
 				}
 			}
 
-			data, e := wrk.Handle()
+			data, e := wrk.Handle(s.Ctx)
 			if e != nil {
 				res.Error = e
 				resps = append(resps, res)
