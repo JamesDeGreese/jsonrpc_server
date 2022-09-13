@@ -78,6 +78,13 @@ func (s *Server) ProcessRequest(w http.ResponseWriter, r *http.Request) {
 			res := Response{JsonRPC: "2.0"}
 			res.ID = req.ID
 
+			defer func() {
+				if r := recover(); r != nil {
+					res.Error = &Error{Code: -32603, Message: "Internal JSON-RPC error."}
+					resps = append(resps, res)
+				}
+			}()
+
 			// Проверка валидности формата запроса
 			if !validate(req) {
 				res.Error = &Error{Code: -32600, Message: "The JSON sent is not a valid Request object."}
