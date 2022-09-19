@@ -29,7 +29,7 @@ func (w *w) Handle(ctx context.Context) (interface{}, *Error) {
 
 func (r *r) ResolveWorker(method string) (Worker, *Error) {
 	if method != "test" {
-		return nil, &Error{Code: -32601, Message: "The method does not exist"}
+		return nil, &Error{Code: ErrorMethodNotFoundCode, Message: ErrorMethodNotFoundMessage}
 	}
 	return &w{}, nil
 }
@@ -98,8 +98,8 @@ func TestServer(t *testing.T) {
 				JsonRPC: "2.0",
 				Result:  nil,
 				Error: &Error{
-					Code:    -32602,
-					Message: "Invalid method parameter(s).",
+					Code:    ErrorInvalidParamsCode,
+					Message: ErrorInvalidParamsMessage,
 				},
 				ID: "0cd909b9-d3ae-4740-88fe-727f739a3bf8",
 			},
@@ -115,8 +115,8 @@ func TestServer(t *testing.T) {
 				JsonRPC: "2.0",
 				Result:  nil,
 				Error: &Error{
-					Code:    -32601,
-					Message: "The method does not exist",
+					Code:    ErrorMethodNotFoundCode,
+					Message: ErrorMethodNotFoundMessage,
 				},
 				ID: "808576f5-3d30-4b3a-bc48-556df9cf9ada",
 			},
@@ -135,8 +135,8 @@ func TestServer(t *testing.T) {
 				JsonRPC: "2.0",
 				Result:  nil,
 				Error: &Error{
-					Code:    -32600,
-					Message: "Request timeout",
+					Code:    ErrorInternalErrorCode,
+					Message: ErrorTimeoutMessage,
 				},
 				ID: nil,
 			},

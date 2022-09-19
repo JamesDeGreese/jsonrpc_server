@@ -36,6 +36,21 @@ type Error struct {
 	Message string `json:"message"`
 }
 
+const (
+	ErrorParseRequestCode   = -32700
+	ErrorInvalidRequestCode = -32600
+	ErrorMethodNotFoundCode = -32601
+	ErrorInvalidParamsCode  = -32602
+	ErrorInternalErrorCode  = -32604
+
+	ErrorParseRequestMessage   = "Invalid JSON was received by the server."
+	ErrorInvalidRequestMessage = "The JSON sent is not a valid Request object."
+	ErrorMethodNotFoundMessage = "The method does not exist / is not available."
+	ErrorInvalidParamsMessage  = "Invalid method parameter(s)."
+	ErrorInternalErrorMessage  = "Internal JSON-RPC error."
+	ErrorTimeoutMessage        = "Request timeout was reached"
+)
+
 type Router interface {
 	ResolveWorker(method string) (Worker, *Error)
 }
@@ -81,14 +96,16 @@ func (s *Server) ProcessRequest(w http.ResponseWriter, r *http.Request) {
 
 			defer func() {
 				if r := recover(); r != nil {
-					res.Error = &Error{Code: -32603, Message: "Internal JSON-RPC error."}
+					var e = Error{Code: ErrorInternalErrorCode, Message: ErrorInternalErrorMessage}
+					res.Error = &e
 					resps = append(resps, res)
 				}
 			}()
 
 			// Проверка валидности формата запроса
 			if !validate(req) {
-				res.Error = &Error{Code: -32600, Message: "The JSON sent is not a valid Request object."}
+				var e = Error{Code: ErrorInvalidRequestCode, Message: ErrorInvalidRequestMessage}
+				res.Error = &e
 				resps = append(resps, res)
 				return
 			}
@@ -107,7 +124,8 @@ func (s *Server) ProcessRequest(w http.ResponseWriter, r *http.Request) {
 
 				// Валидация параметров, которые передаются в обработчик
 				if err != nil || !validate(wrk) {
-					res.Error = &Error{Code: -32602, Message: "Invalid method parameter(s)."}
+					var e = Error{Code: ErrorInvalidParamsCode, Message: ErrorInvalidParamsMessage}
+					res.Error = &e
 					resps = append(resps, res)
 					return
 				}
@@ -129,10 +147,11 @@ func (s *Server) ProcessRequest(w http.ResponseWriter, r *http.Request) {
 	timeout := isReachTimeout(&wg, time.Duration(s.Timeout)*time.Second)
 
 	if timeout {
+		var e = Error{Code: ErrorInternalErrorCode, Message: ErrorTimeoutMessage}
 		res := Response{
 			JsonRPC: "2.0",
 			Result:  nil,
-			Error:   &Error{Code: -32600, Message: "Request timeout"},
+			Error:   &e,
 			ID:      nil,
 		}
 		jsonResp, _ := json.Marshal(res)
@@ -158,8 +177,9 @@ func validate(req interface{}) bool {
 }
 
 func unmarshalRequest(b []byte) ([]Request, *Error) {
+	var e = &Error{Code: ErrorParseRequestCode, Message: ErrorParseRequestMessage}
 	if len(b) == 0 {
-		return make([]Request, 0), &Error{Code: -32700, Message: "Invalid JSON was received by the server."}
+		return make([]Request, 0), e
 	}
 	switch b[0] {
 	case '{':
@@ -167,24 +187,26 @@ func unmarshalRequest(b []byte) ([]Request, *Error) {
 	case '[':
 		return unmarshalMany(b)
 	}
-	return make([]Request, 0), &Error{Code: -32700, Message: "Invalid JSON was received by the server."}
+	return make([]Request, 0), e
 }
 
 func unmarshalMany(b []byte) ([]Request, *Error) {
+	var e = &Error{Code: ErrorParseRequestCode, Message: ErrorParseRequestMessage}
 	var reqs []Request
 	err := json.Unmarshal(b, &reqs)
 	if err != nil {
-		return reqs, &Error{Code: -32700, Message: "Invalid JSON was received by the server."}
+		return reqs, e
 	}
 
 	return reqs, nil
 }
 
 func unmarshalSingle(b []byte) ([]Request, *Error) {
+	var e = &Error{Code: ErrorParseRequestCode, Message: ErrorParseRequestMessage}
 	req := Request{}
 	err := json.Unmarshal(b, &req)
 	if err != nil {
-		return []Request{req}, &Error{Code: -32700, Message: "Invalid JSON was received by the server."}
+		return []Request{req}, e
 	}
 
 	return []Request{req}, nil
