@@ -7,12 +7,14 @@ import (
 	"io/ioutil"
 	"net/http"
 	"sync"
+	"time"
 )
 
 type Server struct {
 	Address string
 	Router  Router
 	Ctx     context.Context
+	Timeout int
 }
 
 type Request struct {
@@ -55,7 +57,6 @@ func (s *Server) Run() {
 func (s *Server) ProcessRequest(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	var wg sync.WaitGroup
-
 	var resps []Response
 
 	b, _ := ioutil.ReadAll(r.Body)
@@ -125,14 +126,25 @@ func (s *Server) ProcessRequest(w http.ResponseWriter, r *http.Request) {
 		}(req)
 	}
 
-	wg.Wait()
+	timeout := isReachTimeout(&wg, time.Duration(s.Timeout)*time.Second)
 
-	if len(resps) == 1 {
-		jsonResp, _ := json.Marshal(resps[0])
+	if timeout {
+		res := Response{
+			JsonRPC: "2.0",
+			Result:  nil,
+			Error:   &Error{Code: -32600, Message: "Request timeout"},
+			ID:      nil,
+		}
+		jsonResp, _ := json.Marshal(res)
 		w.Write(jsonResp)
 	} else {
-		jsonResp, _ := json.Marshal(resps)
-		w.Write(jsonResp)
+		if len(resps) == 1 {
+			jsonResp, _ := json.Marshal(resps[0])
+			w.Write(jsonResp)
+		} else {
+			jsonResp, _ := json.Marshal(resps)
+			w.Write(jsonResp)
+		}
 	}
 
 	return
@@ -176,4 +188,21 @@ func unmarshalSingle(b []byte) ([]Request, *Error) {
 	}
 
 	return []Request{req}, nil
+}
+
+func isReachTimeout(wg *sync.WaitGroup, timeout time.Duration) bool {
+	done := make(chan struct{})
+
+	go func() {
+		defer close(done)
+		wg.Wait()
+	}()
+
+	select {
+	case <-done:
+		return false
+
+	case <-time.After(timeout):
+		return true
+	}
 }

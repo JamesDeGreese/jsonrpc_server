@@ -16,6 +16,7 @@ type Database struct {
 
 type Http struct {
 	Address string `toml:"address"`
+	Timeout int    `toml:"timeout"`
 }
 
 type Config struct {

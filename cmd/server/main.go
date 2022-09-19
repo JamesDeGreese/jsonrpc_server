@@ -19,9 +19,10 @@ func main() {
 	ctx = context.WithValue(ctx, "app", app)
 
 	s := jsonrpc_server.Server{
-		Address: ":80",
+		Address: app.Config.Http.Address,
 		Router:  &internal.Router{},
 		Ctx:     ctx,
+		Timeout: app.Config.Http.Timeout,
 	}
 
 	s.Run()

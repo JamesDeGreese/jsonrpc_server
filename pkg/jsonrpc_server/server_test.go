@@ -2,22 +2,28 @@ package jsonrpc_server
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
 	"reflect"
 	"testing"
+	"time"
 )
 
 type r struct {
 }
 
 type w struct {
-	Foo string `json:"foo" validation:"required"`
+	Foo     string `json:"foo" validation:"required"`
+	Timeout int    `json:"timeout,omitempty" validation:"numeric"`
 }
 
-func (w *w) Handle() (interface{}, *Error) {
+func (w *w) Handle(ctx context.Context) (interface{}, *Error) {
+	if w.Timeout != 0 {
+		time.Sleep(time.Duration(w.Timeout) * time.Second)
+	}
 	return w.Foo, nil
 }
 
@@ -58,6 +64,8 @@ func TestServer(t *testing.T) {
 	s := Server{
 		Address: "localhost:8888",
 		Router:  &r,
+		Ctx:     context.Background(),
+		Timeout: 3,
 	}
 
 	tests := []test{
@@ -111,6 +119,26 @@ func TestServer(t *testing.T) {
 					Message: "The method does not exist",
 				},
 				ID: "808576f5-3d30-4b3a-bc48-556df9cf9ada",
+			},
+		},
+		{
+			request: Request{
+				JsonRPC: "2.0",
+				Method:  "test",
+				Params: struct {
+					Foo     string
+					Timeout int
+				}{Foo: "bar", Timeout: 20},
+				ID: "2c7f50cf-963d-42a9-9a92-30657e77c0c6",
+			},
+			response: Response{
+				JsonRPC: "2.0",
+				Result:  nil,
+				Error: &Error{
+					Code:    -32600,
+					Message: "Request timeout",
+				},
+				ID: nil,
 			},
 		},
 	}
